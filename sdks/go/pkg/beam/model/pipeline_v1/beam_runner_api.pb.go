@@ -924,7 +924,7 @@ type PTransform struct {
 	//
 	Outputs map[string]string `protobuf:"bytes,4,rep,name=outputs" json:"outputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// (Optional) Static display data for this PTransform application. If
-	// there is none, or it is not relevant (such as use by the Fn API)
+	// there is none, or it is not relevant (such as use by the FnAPI)
 	// then it may be omitted.
 	DisplayData *DisplayData `protobuf:"bytes,6,opt,name=display_data,json=displayData" json:"display_data,omitempty"`
 }
@@ -994,7 +994,7 @@ type PCollection struct {
 	// (Required) The id of the windowing strategy for this PCollection.
 	WindowingStrategyId string `protobuf:"bytes,4,opt,name=windowing_strategy_id,json=windowingStrategyId" json:"windowing_strategy_id,omitempty"`
 	// (Optional) Static display data for this PTransform application. If
-	// there is none, or it is not relevant (such as use by the Fn API)
+	// there is none, or it is not relevant (such as use by the FnAPI)
 	// then it may be omitted.
 	DisplayData *DisplayData `protobuf:"bytes,5,opt,name=display_data,json=displayData" json:"display_data,omitempty"`
 }
@@ -1164,7 +1164,7 @@ func (m *ParDoPayload) GetSplittable() bool {
 // Parameters that a UDF might require.
 //
 // The details of how a runner sends these parameters to the SDK harness
-// are the subject of the Fn API.
+// are the subject of the FnAPI.
 //
 // The details of how an SDK harness delivers them to the UDF is entirely
 // up to the SDK. (for some SDKs there may be parameters that are not
@@ -1173,7 +1173,7 @@ func (m *ParDoPayload) GetSplittable() bool {
 // Here, the parameters are simply indicators to the runner that they
 // need to run the function a particular way.
 //
-// TODO: the evolution of the Fn API will influence what needs explicit
+// TODO: the evolution of the FnAPI will influence what needs explicit
 // representation here
 type Parameter struct {
 	Type Parameter_Type_Enum `protobuf:"varint,1,opt,name=type,enum=org.apache.beam.model.pipeline.v1.Parameter_Type_Enum" json:"type,omitempty"`
@@ -3031,7 +3031,7 @@ func (m *SideInput) GetWindowMappingFn() *SdkFunctionSpec {
 type Environment struct {
 	// (Required) The URL of a container
 	//
-	// TODO: reconcile with Fn API's DockerContainer structure by
+	// TODO: reconcile with FnAPI's DockerContainer structure by
 	// adding adequate metadata to know how to interpret the container
 	Url string `protobuf:"bytes,1,opt,name=url" json:"url,omitempty"`
 }
