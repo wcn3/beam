@@ -61,7 +61,6 @@ func setupDiagnosticRecording() error {
 		return nil
 	}
 
-	// Set up the session recorder.
 	if Capture == nil {
 		return fmt.Errorf("Cannot enable session recording. Capture variable not provided")
 	}
