@@ -251,6 +251,5 @@ func fail(id, format string, args ...interface{}) *fnpb.InstructionResponse {
 // grpc.Dial succeeds.
 func dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
 	log.Infof(ctx, "Connecting via grpc @ %s ...", endpoint)
-
 	return grpcx.Dial(ctx, endpoint, timeout)
 }
