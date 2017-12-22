@@ -43,14 +43,14 @@ func (n *DataSource) ID() UnitID {
 }
 
 func (n *DataSource) Up(ctx context.Context) error {
-	n.start = time.Now()
-	n.count = 0
 	return nil
 }
 
 func (n *DataSource) StartBundle(ctx context.Context, id string, data DataManager) error {
 	n.sid = StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target, InstID: id}
 	n.source = data
+	n.start = time.Now()
+	n.count = 0
 	return n.Out.StartBundle(ctx, id, data)
 }
 
@@ -163,13 +163,13 @@ func (n *DataSource) Process(ctx context.Context) error {
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
+	log.Infof(context.Background(), "DataSource: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	n.sid = StreamID{}
 	n.source = nil
 	return n.Out.FinishBundle(ctx)
 }
 
 func (n *DataSource) Down(ctx context.Context) error {
-	log.Infof(context.Background(), "DataSource: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	n.sid = StreamID{}
 	n.source = nil
 	return nil

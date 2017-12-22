@@ -42,12 +42,12 @@ func (n *DataSink) ID() UnitID {
 }
 
 func (n *DataSink) Up(ctx context.Context) error {
-	n.count = 0
-	n.start = time.Now()
 	return nil
 }
 
 func (n *DataSink) StartBundle(ctx context.Context, id string, data DataManager) error {
+	n.count = 0
+	n.start = time.Now()
 	sid := StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target, InstID: id}
 
 	w, err := data.OpenWrite(ctx, sid)
@@ -79,11 +79,11 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 }
 
 func (n *DataSink) FinishBundle(ctx context.Context) error {
+	log.Infof(context.Background(), "DataSink: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	return n.w.Close()
 }
 
 func (n *DataSink) Down(ctx context.Context) error {
-	log.Infof(context.Background(), "DataSink: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	return nil
 }
 
