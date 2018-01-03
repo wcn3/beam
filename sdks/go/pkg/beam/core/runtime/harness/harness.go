@@ -130,6 +130,8 @@ type control struct {
 	// TODO: running pipelines
 }
 
+type instKeyType string
+
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	id := req.GetInstructionId()
 	ctx = context.WithValue(ctx, instKey, id)
@@ -140,7 +142,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		for _, desc := range msg.GetProcessBundleDescriptor() {
 			var roots []string
-			for id, _ := range desc.GetTransforms() {
+			for id := range desc.GetTransforms() {
 				roots = append(roots, id)
 			}
 			p := &pb.Pipeline{

@@ -33,7 +33,9 @@ import (
 // TODO(herohde) 10/13/2017: add top-level harness.Main panic handler that flushes logs.
 // Also make logger flush on Fatal severity messages.
 
-const instKey = "beam:inst"
+type instKeyType string
+
+const instKey = instKeyType("beam:inst")
 
 func setInstID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, instKey, id)
