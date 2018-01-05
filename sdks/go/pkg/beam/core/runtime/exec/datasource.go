@@ -102,8 +102,6 @@ func (n *DataSource) Process(ctx context.Context) error {
 				// log.Printf("Fixed size=%v", size)
 				atomic.AddInt64(&n.count, int64(size))
 
-				n.count += size
-
 				for i := int32(0); i < size; i++ {
 					value, err := cv.Decode(r)
 					if err != nil {
@@ -152,7 +150,6 @@ func (n *DataSource) Process(ctx context.Context) error {
 		for {
 			atomic.AddInt64(&n.count, 1)
 			t, err := DecodeWindowedValueHeader(c, r)
-			n.count++
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -176,7 +173,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
-	log.Infof(context.Background(), "DataSource: %d elements in %d ns", n.count, time.Now().Sub(n.start))
+	log.Infof(context.Background(), "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
 	n.sid = StreamID{}
 	n.source = nil
 	return n.Out.FinishBundle(ctx)
