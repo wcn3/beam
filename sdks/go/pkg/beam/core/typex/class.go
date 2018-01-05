@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/golang/protobuf/proto"
 )
 
 // Class is the type "class" of data as distinguished by the runtime. The class
@@ -74,6 +76,13 @@ func ClassOf(t reflect.Type) Class {
 func IsConcrete(t reflect.Type) bool {
 	if t == nil || t == EventTimeType {
 		return false
+	}
+
+	// TODO(wcn): perhaps we need an extension hook to teach this method about
+	// types that are "concrete" because they are already sourced by external code?
+	pt := reflect.TypeOf((*proto.Message)(nil)).Elem()
+	if t.Implements(pt) {
+		return true
 	}
 
 	switch t.Kind() {
