@@ -102,6 +102,8 @@ func (n *DataSource) Process(ctx context.Context) error {
 				// log.Printf("Fixed size=%v", size)
 				atomic.AddInt64(&n.count, int64(size))
 
+				n.count += size
+
 				for i := int32(0); i < size; i++ {
 					value, err := cv.Decode(r)
 					if err != nil {
@@ -150,6 +152,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 		for {
 			atomic.AddInt64(&n.count, 1)
 			t, err := DecodeWindowedValueHeader(c, r)
+			n.count++
 			if err != nil {
 				if err == io.EOF {
 					return nil
