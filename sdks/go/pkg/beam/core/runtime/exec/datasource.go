@@ -19,9 +19,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -32,6 +34,8 @@ type DataSource struct {
 
 	sid    StreamID
 	source DataReader
+	count  int32
+	start  time.Time
 }
 
 func (n *DataSource) ID() UnitID {
@@ -45,6 +49,8 @@ func (n *DataSource) Up(ctx context.Context) error {
 func (n *DataSource) StartBundle(ctx context.Context, id string, data DataManager) error {
 	n.sid = StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target, InstID: id}
 	n.source = data
+	n.start = time.Now()
+	n.count = 0
 	return n.Out.StartBundle(ctx, id, data)
 }
 
@@ -94,6 +100,8 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 				// log.Printf("Fixed size=%v", size)
 
+				n.count += size
+
 				for i := int32(0); i < size; i++ {
 					value, err := cv.Decode(r)
 					if err != nil {
@@ -116,6 +124,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 						break
 					}
 
+					n.count += int32(chunk)
 					for i := uint64(0); i < chunk; i++ {
 						value, err := cv.Decode(r)
 						if err != nil {
@@ -140,6 +149,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 		for {
 			t, err := DecodeWindowedValueHeader(c, r)
+			n.count++
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -163,6 +173,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
+	log.Infof(context.Background(), "DataSource: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	n.sid = StreamID{}
 	n.source = nil
 	return n.Out.FinishBundle(ctx)
