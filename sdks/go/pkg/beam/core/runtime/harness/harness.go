@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"runtime/pprof"
+	"runtime/trace"
 	"sync"
 	"time"
 
@@ -89,6 +90,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}
 
 	var cpuProfBuf bytes.Buffer
+	var traceBuf bytes.Buffer
 	for {
 		req, err := client.Recv()
 		if err != nil {
@@ -107,14 +109,20 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 
 		if isEnabled("cpu_profiling") {
 			cpuProfBuf.Reset()
+			traceBuf.Reset()
 			pprof.StartCPUProfile(&cpuProfBuf)
+			trace.Start(traceBuf)
 		}
 		resp := ctrl.handleInstruction(ctx, req)
 
 		if isEnabled("cpu_profiling") {
 			pprof.StopCPUProfile()
+			traceBuf.Stop()
 			if err := ProfileWriter(fmt.Sprintf("cpu_prof%s", req.InstructionId), &cpuProfBuf); err != nil {
 				log.Warnf(ctx, "Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
+			}
+			if err := ProfileWriter(fmt.Sprintf("trace_prof%s", req.InstructionId), &traceBuf); err != nil {
+				log.Warnf(ctx, "Failed to write trace profile for instruction %s: %v", req.InstructionId, err)
 			}
 		}
 
