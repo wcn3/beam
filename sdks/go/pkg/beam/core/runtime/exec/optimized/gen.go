@@ -13,20 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package reflectx
+package optimized
 
-import (
-	"encoding/json"
-	"fmt"
-	"reflect"
-)
+// NOTE(herohde) 1/18/2018: omit []byte for encodes to avoid re-registration due to symmetry.
 
-// UnmarshalJSON decodes a json string as then given type. It is suitable
-// for when the type is not statically known.
-func UnmarshalJSON(t reflect.Type, str string) (interface{}, error) {
-	data := reflect.New(t).Interface()
-	if err := json.Unmarshal([]byte(str), data); err != nil {
-		return nil, fmt.Errorf("failed to decode data: %v", err)
-	}
-	return reflect.ValueOf(data).Elem().Interface(), nil
-}
+// TODO(herohde) 1/17/2018: we need a more convenient way to generate specialized Funcs of
+// various signatures.
+
+//go:generate specialize --package=optimized --input=callers.tmpl --x=data,universals --imports=typex
+//go:generate specialize --package=optimized --input=decoders.tmpl --x=data,universals --imports=typex
+//go:generate specialize --package=optimized --input=emitters.tmpl --x=data,universals --y=data,universals
+//go:generate specialize --package=optimized --input=encoders.tmpl --x=primitives,universals --imports=typex
+//go:generate specialize --package=optimized --input=inputs.tmpl --x=data,universals --y=data,universals
