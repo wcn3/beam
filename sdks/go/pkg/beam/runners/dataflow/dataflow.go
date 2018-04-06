@@ -94,7 +94,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	if *cpuProfiling != "" {
-		perf.EnableProfCaptureHook("gcs_profile_writer", []string{*cpuProfiling})
+		perf.EnableProfCaptureHook("gcs_profile_writer", *cpuProfiling)
 	}
 
 	if *sessionRecording != "" {

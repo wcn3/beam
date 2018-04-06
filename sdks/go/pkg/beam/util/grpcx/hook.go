@@ -69,7 +69,7 @@ func RegisterHook(name string, c HookFactory) {
 
 // EnableHook is called to request the use of the gRPC
 // hook in a pipeline.
-func EnableHook(name string, opts []string) {
+func EnableHook(name string, opts ...string) {
 	_, exists := hookRegistry[name]
 	if !exists {
 		panic(fmt.Sprintf("EnableHook: %s not registered", name))

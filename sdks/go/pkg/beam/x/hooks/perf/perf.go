@@ -114,7 +114,7 @@ func RegisterProfCaptureHook(name string, c CaptureHookFactory) {
 }
 
 // EnableProfCaptureHook actives a registered profile capture hook for a given pipeline.
-func EnableProfCaptureHook(name string, opts []string) {
+func EnableProfCaptureHook(name string, opts ...string) {
 	_, exists := profCaptureHookRegistry[name]
 	if !exists {
 		panic(fmt.Sprintf("EnableProfCaptureHook: %s not registered", name))
@@ -150,7 +150,7 @@ func RegisterTraceCaptureHook(name string, c CaptureHookFactory) {
 }
 
 // EnableTraceCaptureHook actives a registered profile capture hook for a given pipeline.
-func EnableTraceCaptureHook(name string, opts []string) {
+func EnableTraceCaptureHook(name string, opts ...string) {
 	if _, exists := traceCaptureHookRegistry[name]; !exists {
 		panic(fmt.Sprintf("EnableTraceCaptureHook: %s not registered", name))
 	}
