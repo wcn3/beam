@@ -37,7 +37,6 @@ type Hook struct {
 type HookFactory func([]string) Hook
 
 var hookRegistry = make(map[string]HookFactory)
-var enabledGrpcHook string
 
 // RegisterHook registers a HookFactory for the
 // supplied identifier. It panics if the same identifier is
@@ -76,13 +75,12 @@ func EnableHook(name string, opts ...string) {
 	}
 	// Only one hook can be enabled. If the pipeline has two conflicting views about how to use gRPC
 	// that won't end well.
-	if enabledGrpcHook != "" {
-		n, _ := hooks.Decode(enabledGrpcHook)
+	if exists, opts := hooks.IsEnabled("grpc"); exists {
+		n, _ := hooks.Decode(opts[0])
 		if n != name {
 			panic(fmt.Sprintf("EnableHook: can't enable hook %s, hook %s already enabled", name, n))
 		}
 	}
 
-	enabledGrpcHook = hooks.Encode(name, opts)
-	hooks.EnableHook("grpc", enabledGrpcHook)
+	hooks.EnableHook("grpc", hooks.Encode(name, opts))
 }

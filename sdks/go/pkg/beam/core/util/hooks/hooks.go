@@ -32,7 +32,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
@@ -47,9 +46,10 @@ var (
 )
 
 // A Hook is a set of hooks to run at various stages of executing a
-// pipelne.
+// pipeline.
 type Hook struct {
-	// Init is called once at the startup of the worker.
+	// Init is called once at the startup of the worker prior to
+	// connecting to the FnAPI services.
 	Init InitHook
 	// Req is called each time the worker handles a FnAPI instruction request.
 	Req RequestHook
@@ -92,8 +92,6 @@ type RequestHook func(context.Context, *fnpb.InstructionRequest) error
 // RunRequestHooks runs the hooks that handle a FnAPI request.
 func RunRequestHooks(ctx context.Context, req *fnpb.InstructionRequest) {
 	// The request hooks should not modify the request.
-	// TODO(wcn): pass the request by value to enforce? That's a perf hit.
-	// I'd rather trust users to do the right thing.
 	for n, h := range activeHooks {
 		if h.Req != nil {
 			if err := h.Req(ctx, req); err != nil {
@@ -117,24 +115,23 @@ func RunResponseHooks(ctx context.Context, req *fnpb.InstructionRequest, resp *f
 	}
 }
 
-// SerializeHooks serializes the activated hooks and their configuration into a JSON string
+// SerializeHooksToOptions serializes the activated hooks and their configuration into a JSON string
 // that can be deserialized later by the runner.
-func SerializeHooks() {
+func SerializeHooksToOptions() {
 	data, err := json.Marshal(enabledHooks)
 	if err != nil {
 		// Shouldn't happen, since all the data is strings.
 		panic(fmt.Sprintf("Couldn't serialize hooks: %v", err))
 	}
-	fmt.Fprintf(os.Stderr, "SerializeHooks: %q", string(data))
 	runtime.GlobalOptions.Set("hooks", string(data))
 }
 
-// DeserializeHooks extracts the hook configuration information from the options and configures
+// DeserializeHooksFromOptions extracts the hook configuration information from the options and configures
 // the hooks with the supplied options.
-func DeserializeHooks() {
+func DeserializeHooksFromOptions() {
 	cfg := runtime.GlobalOptions.Get("hooks")
 	if err := json.Unmarshal([]byte(cfg), &enabledHooks); err != nil {
-		// Shouldn't happen
+		// Shouldn't happen, since all the data is strings.
 		panic(fmt.Sprintf("DeserializeHooks failed on input %q: %v", cfg, err))
 	}
 
@@ -153,6 +150,13 @@ func EnableHook(name string, args ...string) error {
 	}
 	enabledHooks[name] = args
 	return nil
+}
+
+// IsEnabled returns true and the registered options if the hook is
+// already enabled.
+func IsEnabled(name string) (bool, []string) {
+	opts, ok := enabledHooks[name]
+	return ok, opts
 }
 
 // Encode encodes a hook name and its arguments into a single string.

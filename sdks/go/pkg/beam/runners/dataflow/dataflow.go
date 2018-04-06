@@ -98,7 +98,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	if *sessionRecording != "" {
-		// TODO(wcn): implement this.
+		// TODO(wcn): BEAM-4017
 		// It's a bit inconvenient for GCS because the whole object is written in
 		// one pass, whereas the session logs are constantly appended. We wouldn't
 		// want to hold all the logs in memory to flush at the end of the pipeline
@@ -107,7 +107,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		// once they get to an appropriate size (50M or so?)
 	}
 
-	hooks.SerializeHooks()
+	hooks.SerializeHooksToOptions()
 	options := beam.PipelineOptions.Export()
 
 	// (1) Upload Go binary and model to GCS.

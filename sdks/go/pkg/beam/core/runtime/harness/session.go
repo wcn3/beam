@@ -199,7 +199,6 @@ type CaptureHook io.WriteCloser
 type CaptureHookFactory func([]string) CaptureHook
 
 var captureHookRegistry = make(map[string]CaptureHookFactory)
-var enabledCaptureHook string
 
 func init() {
 	hf := func(opts []string) hooks.Hook {
@@ -232,13 +231,12 @@ func EnableCaptureHook(name string, opts []string) {
 	if _, exists := captureHookRegistry[name]; !exists {
 		panic(fmt.Sprintf("EnableHook: %s not registered", name))
 	}
-	if enabledCaptureHook != "" {
-		n, _ := hooks.Decode(enabledCaptureHook)
+	if exists, opts := hooks.IsEnabled("session"); exists {
+		n, _ := hooks.Decode(opts[0])
 		if n != name {
 			panic(fmt.Sprintf("EnableHook: can't enable hook %s, hook %s already enabled", name, n))
 		}
 	}
 
-	enabledCaptureHook = hooks.Encode(name, opts)
-	hooks.EnableHook("session", enabledCaptureHook)
+	hooks.EnableHook("session", hooks.Encode(name, opts))
 }
