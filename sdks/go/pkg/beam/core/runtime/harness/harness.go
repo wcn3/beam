@@ -29,7 +29,11 @@ import (
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
+	"go.opencensus.io/tag"
+	"go.opencensus.io/trace"
+	"go.opencensus.io/trace/propagation"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).
@@ -53,7 +57,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}
 	defer conn.Close()
 
-	client, err := fnpb.NewBeamFnControlClient(conn).Control(ctx)
+	var header metadata.MD
+	client, err := fnpb.NewBeamFnControlClient(conn).Control(ctx, grpc.Header(&header))
 	if err != nil {
 		return fmt.Errorf("Failed to connect to control service: %v", err)
 	}
@@ -92,6 +97,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	// so as to avoid blocking the underlying network channel.
 	for {
 		req, err := client.Recv()
+		ctx := injectTraceMetadata(ctx, header)
+		trace.FromContext(ctx).Annotate(nil, "Go routing work")
 		if err != nil {
 			close(respc)
 			wg.Wait()
@@ -110,7 +117,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			recordInstructionRequest(req)
 
 			hooks.RunRequestHooks(ctx, req)
+			trace.FromContext(ctx).Annotate(nil, "Go starting work")
 			resp := ctrl.handleInstruction(ctx, req)
+			trace.FromContext(ctx).Annotate(nil, "Go finished work")
 
 			hooks.RunResponseHooks(ctx, req, resp)
 
@@ -267,4 +276,37 @@ func fail(id, format string, args ...interface{}) *fnpb.InstructionResponse {
 func dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
 	log.Infof(ctx, "Connecting via grpc @ %s ...", endpoint)
 	return grpcx.Dial(ctx, endpoint, timeout)
+}
+
+func injectTraceMetadata(ctx context.Context, header metadata.MD) context.Context {
+	// This is the backwards Census propagation.
+	// I put the data in the similar key names, prefixed with "beam-"
+
+	// Build a span with a remote parent based on the propagated span.
+	log.Infof(ctx, "header: %v", header)
+	binSpan := header["beam-trace-bin"]
+	if len(binSpan) != 1 {
+		return ctx
+	}
+	sctx, ok := propagation.FromBinary([]byte(binSpan[0]))
+	if ok {
+		log.Infof(ctx, "Remote context: %+v", sctx)
+	}
+
+	span := trace.NewSpanWithRemoteParent("RunInstruction", sctx, trace.StartOptions{})
+	ctx = trace.WithSpan(ctx, span)
+
+	// Get the tags returned from the server and install them into the Go context.
+	binTags := header["beam-tags-bin"]
+	if len(binTags) != 1 {
+		return ctx
+	}
+	tags := []byte(binTags[0])
+	m, err := tag.Decode(tags)
+	if err != nil {
+		log.Warnf(ctx, "Decode failed: %v", err)
+		return ctx
+	}
+	log.Infof(ctx, "tag map: %v", m)
+	return tag.NewContext(ctx, m)
 }
