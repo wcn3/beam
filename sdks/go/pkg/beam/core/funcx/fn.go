@@ -53,6 +53,9 @@ const (
 	//   "func() func (*string, *T) bool"
 	// are reiterable versions of the FnIter examples.
 	FnReIter FnParamKind = 0x10
+	// FnIterSlice is a slice of FnIter so CoGbk can have a dynamic number of
+	// collections.
+	FnIterSlice FnParamKind = 11
 	// FnEmit indicates a function input parameter that is an emitter.
 	// Examples of emitters:
 	//       "func (int)"
@@ -79,6 +82,8 @@ func (k FnParamKind) String() string {
 		return "Iter"
 	case FnReIter:
 		return "ReIter"
+	case FnIterSlice:
+		return "IterSlice"
 	case FnEmit:
 		return "Emit"
 	case FnType:
@@ -234,6 +239,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 			kind = FnIter
 		case IsReIter(t):
 			kind = FnReIter
+		case t.Kind() == reflect.Slice && IsIter(t.Elem()):
+			kind = FnIterSlice
 		default:
 			return nil, fmt.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
@@ -289,7 +296,7 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 }
 
 // The order of present parameters and return values must be as follows:
-// func(FnContext?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
+// func(FnContext?, FnEventTime?, FnType?, (FnIterSlice|(FnValue, SideInput*))?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
 //     where ? indicates 0 or 1, and * indicates any number.
 //     and  a SideInput is one of FnValue or FnIter or FnReIter
 // Note: Fns with inputs must have at least one FnValue as the main input.
@@ -360,10 +367,12 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		switch transition {
 		case FnIter, FnReIter:
 			return psInput, nil
+		case FnIterSlice:
+			return psOutput, nil
 		}
 	case psOutput:
 		switch transition {
-		case FnValue, FnIter, FnReIter:
+		case FnValue, FnIter, FnReIter, FnIterSlice:
 			return -1, errInputPrecedence
 		}
 	}
@@ -377,7 +386,7 @@ func nextParamState(cur paramState, transition FnParamKind) (paramState, error) 
 		return -1, errReflectTypePrecedence
 	case FnValue:
 		return psInput, nil
-	case FnIter, FnReIter:
+	case FnIter, FnReIter, FnIterSlice:
 		return -1, errSideInputPrecedence
 	case FnEmit:
 		return psOutput, nil

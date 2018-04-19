@@ -64,20 +64,31 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interfac
 			i++
 		}
 
+		delta := 0
 		for _, iter := range opt.Values {
 			param := fn.Param[in[i]]
 
-			if param.Kind != funcx.FnIter {
+			if param.Kind == funcx.FnIter {
+				// TODO(herohde) 12/12/2017: allow form conversion on GBK results?
+
+				it := makeIter(param.T, iter)
+				it.Init()
+				args[in[i+delta]] = it.Value()
+				delta++
+			} else if param.Kind == funcx.FnIterSlice {
+				it := makeIter(param.T.Elem(), iter)
+				it.Init()
+
+				if args[in[i]] == nil {
+					args[in[i]] = reflect.MakeSlice(reflect.SliceOf(param.T.Elem()), 0, 0).Interface()
+				}
+				args[in[i]] = reflect.Append(reflect.ValueOf(args[in[i]]), reflect.ValueOf(it.Value())).Interface()
+				delta = 1
+			} else {
 				return nil, fmt.Errorf("GBK/CoGBK result values must be iterable: %v", param)
 			}
-
-			// TODO(herohde) 12/12/2017: allow form conversion on GBK results?
-
-			it := makeIter(param.T, iter)
-			it.Init()
-			args[in[i]] = it.Value()
-			i++
 		}
+		i += delta
 	}
 
 	// (3) Precomputed side input and emitters (or other output).

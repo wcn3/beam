@@ -144,15 +144,35 @@ func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputK
 	if index < len(params) {
 		return nil, nil, fmt.Errorf("found too few input to bind to %v: %v. Forgot an input or to annotate options?", params, in)
 	}
-	if index > len(params) {
+	// If the last input has variable arity, it sinks all the supplied inputs and we don't need
+	// to check for too many inputs.
+	if index > len(params) && !hasVariableArity(in[len(in)-1], params) {
 		return nil, nil, fmt.Errorf("found too many input to bind to %v: %v", params, in)
 	}
 	return inbound, kinds, nil
 }
 
+func hasVariableArity(t typex.FullType, args []funcx.FnParam) bool {
+	if t.Type() != typex.CoGBKType {
+		return false
+	}
+
+	for i := 1; i < len(args); i++ {
+		if args[i].Kind == funcx.FnIterSlice {
+			return true
+		}
+	}
+	return false
+}
+
+func checkStaticArity(t typex.FullType, args []funcx.FnParam, inboundArity int) bool {
+	return inboundArity <= len(args) || hasVariableArity(t, args)
+}
+
 func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.FullType, InputKind, error) {
 	arity := inboundArity(t, isMain)
-	if len(args) < arity {
+
+	if !checkStaticArity(t, args, arity) {
 		return nil, Main, fmt.Errorf("too few parameters to bind %v", t)
 	}
 
@@ -253,8 +273,9 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 
 			components := []typex.FullType{typex.New(args[0].T)}
 
+			argIndex := 1
 			for i := 1; i < arity; i++ {
-				switch args[i].Kind {
+				switch args[argIndex].Kind {
 				case funcx.FnIter:
 					values, _ := funcx.UnfoldIter(args[i].T)
 					trimmed := trimIllegal(values)
@@ -262,9 +283,18 @@ func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.
 						return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
 					}
 					components = append(components, typex.New(trimmed[0]))
+					argIndex++
 
 				case funcx.FnReIter:
 					values, _ := funcx.UnfoldReIter(args[i].T)
+					trimmed := trimIllegal(values)
+					if len(trimmed) != 1 {
+						return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
+					}
+					components = append(components, typex.New(trimmed[0]))
+					argIndex++
+				case funcx.FnIterSlice:
+					values, _ := funcx.UnfoldIter(args[argIndex].T.Elem())
 					trimmed := trimIllegal(values)
 					if len(trimmed) != 1 {
 						return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
