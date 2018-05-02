@@ -22,6 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.opencensus.io/trace"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
@@ -38,6 +40,8 @@ type DataSource struct {
 	source DataReader
 	count  int64
 	start  time.Time
+
+	span *trace.Span
 }
 
 func (n *DataSource) ID() UnitID {
@@ -53,10 +57,15 @@ func (n *DataSource) StartBundle(ctx context.Context, id string, data DataManage
 	n.source = data
 	n.start = time.Now()
 	atomic.StoreInt64(&n.count, 0)
+
+	ctx, n.span = trace.StartSpan(ctx, "DataSource.Span")
 	return n.Out.StartBundle(ctx, id, data)
 }
 
 func (n *DataSource) Process(ctx context.Context) error {
+	// Attach our span to the context for tracing.
+	ctx = trace.WithSpan(ctx, n.span)
+
 	r, err := n.source.OpenRead(ctx, n.sid)
 	if err != nil {
 		return err
@@ -175,9 +184,16 @@ func (n *DataSource) Process(ctx context.Context) error {
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
-	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
+	info := fmt.Sprintf("DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
+	log.Infof(ctx, info)
+	n.span.Annotate(nil, info)
 	n.sid = StreamID{}
 	n.source = nil
+
+	// Attach the span to the context for finishing the bundle, and then have the
+	// span closed.
+	defer n.span.End()
+	ctx = trace.WithSpan(ctx, n.span)
 	return n.Out.FinishBundle(ctx)
 }
 
