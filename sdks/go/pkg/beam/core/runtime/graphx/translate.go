@@ -183,15 +183,19 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 		return m.expandCoGBK(edge)
 	}
 
+	idx := 0
 	inputs := make(map[string]string)
-	for i, in := range edge.Edge.Input {
+	for _, in := range edge.Edge.Input {
 		m.addNode(in.From)
-		inputs[fmt.Sprintf("i%v", i)] = nodeID(in.From)
+		inputs[fmt.Sprintf("i%v", idx)] = nodeID(in.From)
+		idx++
 	}
+	idx = 0
 	outputs := make(map[string]string)
-	for i, out := range edge.Edge.Output {
+	for _, out := range edge.Edge.Output {
 		m.addNode(out.To)
-		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
+		outputs[fmt.Sprintf("i%v", idx)] = nodeID(out.To)
+		idx++
 	}
 
 	transform := &pb.PTransform{
@@ -217,6 +221,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	gbkCoderID := m.coders.Add(MakeGBKUnionCoder(edge.Edge))
 
 	inputs := make(map[string]string)
+	idx := 0
 	for i, in := range edge.Edge.Input {
 		m.addNode(in.From)
 
@@ -249,7 +254,8 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		}
 		m.transforms[injectID] = inject
 
-		inputs[fmt.Sprintf("i%v", i)] = out
+		inputs[fmt.Sprintf("i%v", idx)] = out
+		idx++
 	}
 
 	outNode := edge.Edge.Output[0].To
